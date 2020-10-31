@@ -1,0 +1,157 @@
+/* Mecanismo auto-adaptativo para determinar temperatura inicial
+	beta = taxa de aumento da temperatura (1.1)
+	alfa = taxa mínima de aceitação de soluções vizinhas (0.9)
+	s = solução
+	maxIterTemp = max iteração (no artigo usam o mesmo que o numero de clientes)
+	t0 = temperatura de partida (2)
+*/
+double initialTemperature(double beta, double alfa, Solution s, int maxIterTemp, double t0){
+	double T = t0; //temperatura corrente.
+	Neighborhood* nb = new Neighborhood(inst);
+	bool continua = true; //
+	int aceitos = 0; //número de vizinhos aceitos na temperatura T
+	Solution auxSolution(inst->n_nurses, inst);
+	Solution auxSolution2(inst->n_nurses, inst);
+	Solution standartSolution(inst->n_nurses, inst);
+	standartSolution = s;
+	double delta = 0;
+	double x;
+	int iterTemp = 0;
+
+	while (continua){
+		aceitos = 0;
+		for(int i=0; i<maxIterTemp; i++){
+		    standartSolution = s;
+		    
+		    auxSolution  = nb->trocaShiftsRand(s); //gera vizinho aleatoriamente
+		    auxSolution2 =  nb->trocaSkillRand(s);
+            if(auxSolution2.costSolution < auxSolution.costSolution){
+                auxSolution = auxSolution2; 
+            }
+
+			delta = auxSolution.costSolution - standartSolution.costSolution;
+			if(delta < 0){
+				aceitos++;
+			}else{ //verifica a probabilidade de aceitar a piora
+				x = (rand() % 100)/100; //0 a 0,99
+				if(x < exp(-delta/T)){
+					aceitos++;
+				}else{
+				    s = standartSolution; //retorna a solução anterior;  
+				}
+			}
+		}
+
+		if(aceitos > alfa * maxIterTemp){
+			continua = false;
+		}else{
+			T = beta * T;
+		}	
+	}
+	t0 = T;
+	return t0;
+}
+
+
+/*Simulated annealing, parametros:
+	alfa = taxa de decresciment da temperatura, [0,1] 
+	s = melhor solucao encontrada
+	t0 = temperatura inicial
+	maxIterTemp = numero maximo de iterações com a mesma temperatura*/
+Solution simulatedAnnealing(double alfa, Solution s, double t0, int maxIterTemp){
+
+	Solution bestSolution(inst->n_nurses, inst);
+	Solution standartSolution(inst->n_nurses, inst);
+	standartSolution = s;
+	bestSolution = s;
+	Solution currentSolution(inst->n_nurses, inst);
+	currentSolution = s;
+    Solution currentSolution2(inst->n_nurses, inst);
+	currentSolution2 = s;
+    Solution currentSolution3(inst->n_nurses, inst);
+	currentSolution3 = s;
+	Neighborhood* nb = new Neighborhood(inst);
+	int iterTemp = 0;
+	double T = t0;
+	double x;
+	double delta;
+	int vizinho = 0;
+    time(&g_time1);
+    int it = 0;
+
+	while(T > 0.00001 && tempo_restante() < optTimeOut){
+		while(iterTemp < maxIterTemp){
+            it++;
+
+			iterTemp ++;
+			standartSolution = s;
+			
+		    vizinho = rand() % 100; //chance de 50% de escolher entre uma vizinhança e outra.	
+
+            if (vizinho >= 5){
+		        currentSolution  = nb->trocaShiftsRand(s); //gera vizinho aleatoriamente
+            }else{
+                currentSolution =  nb->trocaSkillRand(s);
+            }
+
+
+            //currentSolution3 =  nb->swapShiftsRand(s);
+            /*if(currentSolution2.costSolution < currentSolution.costSolution){
+                currentSolution = currentSolution2; 
+            }else{
+                if(currentSolution3.costSolution < currentSolution.costSolution && currentSolution3.costSolution < currentSolution2.costSolution){
+                    currentSolution = currentSolution3;
+                } 
+            }*/
+
+           /* cout << "----------------------------------------" << endl << endl;
+            cout << "incremental" << endl << endl;
+            currentSolution.print();
+            int custo =  currentSolution.costSolution;
+            cout << "forca bruta" << endl << endl;
+            currentSolution.forcaBruta();
+            currentSolution.print();
+            cout << "--------------------------------------" << endl << endl;
+            if(custo != currentSolution.costSolution){
+                //currentSolution.print();
+                cout << "ta diferente: " << currentSolution.costSolution << " != " << custo << endl;               
+                exit(0);                
+            }*/
+            
+			 				
+			delta = currentSolution.costSolution - standartSolution.costSolution;
+			
+			if(delta < 0){ //se a solução gerada é melhor que a antiga
+				s = currentSolution;
+				if(currentSolution.costSolution < bestSolution.costSolution){ //se a solução gerada é melhor que a melhor já encontrada
+					bestSolution = currentSolution;
+
+                    if(bestSolution.h_underStaffing + bestSolution.h_shiftTypeSuccessions == 0 ){
+                        //cout << "\e[32;4m" << bestSolution.costSolution << endl;
+                        cout << "\e[32m " << bestSolution.costSolution  << "\e[39m ";
+                        cout << "\e[33m " << T  << " \e[39m " << endl;
+                    }else{
+                        //cout << "\e[31;4m" << bestSolution.costSolution << endl;
+                        cout << "\e[31m " << bestSolution.costSolution  << "\e[39m ";
+                        cout << "\e[33m " << T  << " \e[39m " << endl;
+                       
+                    }
+				}
+			}else{ //verifica a probabilidade de aceitar a piora
+				x = (rand() % 100)/100; //0 a 0,99
+				if(x < exp(-delta/T)){ 
+					s = currentSolution;
+				}else{
+				    s = standartSolution; //retorna a solução anterior;  
+				}
+			}
+          
+		}
+        //cout << s.costSolution << endl;
+		T = T*alfa;
+		iterTemp = 0;
+	}
+	cout << " T: " << T << " Iteracoes: " << it << " Fim melhor: " << bestSolution.costSolution << endl;
+	return bestSolution;
+}
+

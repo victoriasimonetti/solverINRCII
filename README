@@ -1,0 +1,65 @@
+
+-sce : nome do arquivo de cenário
+-his : nome do arquivo do histórico
+-week: nome do arquivo da semana
+-sol: nome do arquivo de saída da solução
+-i --inst: nome ou número da instância (número é indexado de uma lista de instâncias hidden) 
+-r --rand: seed
+-v --verbose: nível de verbosidade do solver
+
+-t --timeout: timeout em segundos (tempo limite para terminar a iteração de todos os algoritmos)
+
+-L --LAHClist: tamanho da lista do LAHC
+-v1...-v7: probabilidade das vizinhanças utilizadas no LAHC 
+
+-l --LAFOlist: tamanho da lista do algoritmo LAFO
+-S --solution: arquivo com uma solução para inicializar qualquer algoritmo
+-k --LBInitialK: K inicial para o localBranching
+
+-a --alg: 1-> gera arquivo de dados .dat (para o solver)
+		  2-> verifica se a solução do cplex está correta ??? como roda isso
+		  3-> LAHC (heurística pura)
+		  4-> LAHC (sol inicial) + localBranching
+		  5-> LAHC (sol inicial) + fixopt
+		  6-> LAHC (sol inicial) + LAFO
+		 
+
+--workdir: diretório de trabalho (interessante para que as soluções não se sobreponham quando rodadas várias threads. Atualmente não é utilizado)
+
+-c: 1 gera arquivo para modelo. (Não utilizado no código...)
+
+-s --subproblem: tempo limite para resolver subproblema
+
+-n --neighborhood: 0-> testa uma combinação sequencial de enfermeiros, começando com 1
+				   1-> probabilidade de selecionar 1 a 5 enfermeiros aleatoriamente
+
+-n1...n5: probabilidade de selecionar 1,2,3,4 e 5 enfermeiros.
+
+
+--------------------------------------------------------------------------------------------------
+Rodando cada algoritmo:
+
+    
+./solver.release -i 1 -t 100 -a 5 -L 1000 -s 10 -n 0 -r 1600904722
+
+Como rodar cplex:
+
+
+--------------------------------------------------------------------------------------------------
+A saber:
+
+- Modelo que gera o lp para o solver está escrito no início do arquivo main.cpp
+	CADA EXECUÇÃO UM NOVO LP É GERADO. Então para mudar o lp apenas precisa modificar o nome do arquivo na main.
+
+
+
+
+
+
+
+
+
+
+
+
+
