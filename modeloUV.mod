@@ -8,6 +8,9 @@ set W dimen 2;          /* +- conjunto de dias dos fins de semanas (w1,w2) */
 set F dimen 2;          /* +- conjunto de sucessões proibidas (s1, s2) */
 set B dimen 2;          /* +- conjunto de tuplas onde cada par representa um começo possível de bloco de alocações consecutivas (u,v) */
 
+set ST dimen 2;   		/* conjunto com dias de segundas e terças */
+set QS dimen 2; 		/* conjunto com dias de quintas e sextas */
+
 param q{n in N, k in K};            /* ??? diferente do modelo do tcc!!! conjunto de qualificações do enfermeiro n */
 param ps{n in N, d in D, s in SD};  /* 1 se enfermeiro não prefere ser alocado no turno s do dia d */
 param pd{n in N, d in D};           /* 1 se enfermeiro não quer se alocado em nenhum turno do dia d  */
@@ -111,10 +114,12 @@ minimize obj: wS1 * sum{d in D, s in SD, k in K} CS1[d,s,k] +
 			  wS7 * sum{n in N} CS7[n] ; 
 				
 		
-
+# GAMBIARRA PARA INCLUIR VALORES CONSTANTES DO HISTÓRICO NO CPLEX
 s.t. gaamm:
     gambi = 1;
-
+				
+# RESTRICOES APENAS PARA DEBUG - NAO DEIXAR LIGADO AO RODAR OS TESTES				
+/*
 s.t. vers1:
 	sum{d in D, s in SD, k in K} CS1[d,s,k] = coberturaOpt30;
 
@@ -150,6 +155,7 @@ s.t. vers6ab:
 
 s.t. vers7:
 	maxFimSemanaTrab30 = sum{n in N} CS7[n];
+*/
 
 # ====================================================================================================================
 

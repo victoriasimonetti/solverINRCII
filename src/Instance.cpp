@@ -300,6 +300,23 @@ void Instance::dataSolver(string datafile){
 		outfile << (i*7)+6 << " " << (i*7)+7 << endl;
 	}
 	outfile << ";" << endl << endl;
+
+	
+	// Conjunto de segundas e terças
+	outfile << "set ST := " << endl;
+	for(int i=0; i<n_weeks; i++){
+		outfile << (i*7)+1 << " " << (i*7)+2 << endl;
+	}
+	outfile << ";" << endl << endl;
+
+	// Conjunto de quintas e sextas
+	outfile << "set QS := " << endl;
+	for(int i=0; i<n_weeks; i++){
+		outfile << (i*7)+4 << " " << (i*7)+5 << endl;
+	}
+	outfile << ";" << endl << endl;
+
+
 	
 	outfile << "set F := " << endl;
 	for(int i=0; i<n_shifts; i++){
@@ -320,6 +337,8 @@ void Instance::dataSolver(string datafile){
 		}
 	}
 	outfile << ";" << endl << endl;
+
+	outfile << "set T := 1 2 3 4;" << endl;
 	
 	outfile << "param q := " << endl;
 	for(int i=0; i<n_nurses; i++){

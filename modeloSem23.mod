@@ -190,45 +190,45 @@ s.t. S1coberturaOtima{d in D, s in SD, k in K}:
 
 #Ligando as varivável auxiliares dos blocos de dias corridos 
 
-s.t. S2aux1{n in N, (u,v) in B, i in u..v: Lld[n] > 3}:
+s.t. S2aux1{n in N, (u,v) in B, i in u..v}:
 	bd[n,u,v] <= sum{s in SD, k in K} x[n,i,s,k];
 
-s.t. S2aux2{n in N, (u,v) in B: u>1 and Lld[n] > 3}:
+s.t. S2aux2{n in N, (u,v) in B: u>1 }:
 	bd[n,u,v] + sum{s in SD, k in K} x[n,u-1,s,k] <=1;
 
-s.t. S2aux3{n in N, (u,v) in B: v < card(D) and Lld[n] > 3}:
+s.t. S2aux3{n in N, (u,v) in B: v < card(D) }:
 	bd[n,u,v] + sum{s in SD, k in K} x[n,v+1,s,k] <=1;
 
-s.t. S2aux7{n in N: Lld[n] > 3}:
+s.t. S2aux7{n in N}:
 	sum{d in D, s in SD, k in K} x[n,d,s,k] = sum{(u,v) in B} (v-u+1)*bd[n,u,v];
 
 
-s.t. S2a{n in N, (u,v) in B: Lld[n] > 3 and v!=card(D)}: # S2a: mínimo de dias consecutivos trabalhados
+s.t. S2a{n in N, (u,v) in B: v!=card(D)}: # S2a: mínimo de dias consecutivos trabalhados
 	CS2a[n,u,v] >= Lld[n] * bd[n,u,v] - ((v-u+1 + hd[n]*floor(1/u)) *bd[n,u,v]);
 
 # ====================================================================================================================
 
 # Ligando as varivável auxiliares dos blocos dos turnos incluindo a folga 
 
-s.t. S2S3aux4{n in N, s in S, (u,v) in B, i in u..v: Lls[n,s] > 3}:
+s.t. S2S3aux4{n in N, s in S, (u,v) in B, i in u..v}:
 	bs[n,u,v,s] <= sum{k in K} x[n,i,s,k];
 
-s.t. S2S3aux5{n in N, s in S, (u,v) in B: u>1 and Lls[n,s] > 3}:
+s.t. S2S3aux5{n in N, s in S, (u,v) in B: u>1 }:
 	bs[n,u,v,s] + sum{k in K} x[n,u-1,s,k] <=1;
 
-s.t. S2S3aux6{n in N, s in S, (u,v) in B: v < card(D) and Lls[n,s] > 3}:
+s.t. S2S3aux6{n in N, s in S, (u,v) in B: v < card(D)}:
 	bs[n,u,v,s] + sum{k in K} x[n,v+1,s,k] <=1; 
 
-s.t. S2S3aux8{n in N, s in S: Lls[n,s] > 3}:
+s.t. S2S3aux8{n in N, s in S}:
 	sum{d in D, k in K} x[n,d,s,k] = sum{(u,v) in B} (v-u+1)*bs[n,u,v,s];
 
 # S2cS3a: mínimo de dias consecutivos trabalhados no mesmo turno e folga 
 # histórico mesmo turno
-s.t. S2c{n in N, (u,v) in B, s in S: Lls[n,s] > 3 and v!=card(D)}:
+s.t. S2c{n in N, (u,v) in B, s in S: v!=card(D)}:
 	CS2cS3a[n,u,v,s] >= Lls[n,s] * bs[n,u,v,s] - ((v-u+1 + hs[n,s]*floor(1/u)) * bs[n,u,v,s]);
 
 # histórico diferente turno
-s.t. S2chist{n in N, s in S: Lls[n,s] > 3 and hs[n,s]>0}:
+s.t. S2chist{n in N, s in S: hs[n,s]>0}:
 	CS2cS3ahist[n,s] >= sum{s1 in S, k in K: s1!=s} x[n,1,s1,k] * Lls[n,s] - hs[n,s];
 
 
@@ -251,7 +251,7 @@ s.t. S2bHist{n in N, i in 1..min(hd[n], Lgd[n])}: #Funciona para qualquer limite
 	i + sum{s in SD, k in K, d in 1..(Lgd[n]+1-i)} x[n,d,s,k] <= Lgd[n] + gdhist[n,i];
 
 # ====================================================================================================================
-
+/*
 # ligando variáveis que identificam inicio do bloco de dias
 
 # liga "td" inicio de um bloco do dia 1
@@ -323,7 +323,7 @@ s.t. s2aHistMin3h1turnos{s in S, n in N: Lls[n,s] == 3 and hs[n,s] == 1}:
 
 s.t. s2aHistMin3h2turnos{n in N, s in S: Lls[n,s] == 3 and hs[n,s] == 2}: 
 	2 - 1 - sum{k in K} x[n,1,s,k] + ts[n,1,s] <= cs[n,0,s];
-
+*/
 # ====================================================================================================================
 
 # Auxiliar para restrição de fins de semana completo 

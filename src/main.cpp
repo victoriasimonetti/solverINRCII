@@ -22,7 +22,7 @@
 
 using namespace std;
 
-vector<string> listInst = {"",
+vector<string> listInst = {"n035w2-0-0-0",
 "n035w4-2-8-8-7-5",/*1*/
 "n035w4-0-1-7-1-8", 
 "n035w4-0-4-2-1-6", 
@@ -99,7 +99,7 @@ int optCplex = 0;
 int optLAHClist = 10000;
 int optRandomSeed = 0;
 double optTimeOut = 1000000000;
-double optTimeLAHC = 60;
+double optTimeInitSol = 60;
 time_t g_time1;
 int optV1 = 19;
 int optV2 = 21;
@@ -115,6 +115,9 @@ int optN3 = 3;
 int optN4 = 2;
 int optN5 = 1;
 
+int optP = 1;
+int optCirculaVizinho = 0;
+
 string wd;
 
 using namespace Convert;
@@ -129,6 +132,7 @@ char* optSol = NULL;
 
 char *optFilename = NULL;
 char *optModel = strdup("modeloUV.mod"); //modeloUV.mod
+char *optSolInitModel = NULL; 
 string optDatafile = "saida.dat";
 string optLPFile;
 
@@ -251,7 +255,7 @@ Solution LAHC(Solution s, bool first=false){
 	
 
     std::uniform_int_distribution<> dis(1, total);
-    while(tempo_restante() < optTimeLAHC){
+    while(tempo_restante() < optTimeInitSol){
 
         int previousCostSolution = currentSolution.costSolution;        
 		//aux = currentSolution;
@@ -376,152 +380,6 @@ void unfixNurse(ZenSolver* solver, double* sol, ZenVar& x, int n){
 }
 
 
-void fixOpt(Solution* s,int optSTL, double optTimeOut){
-
-	Crono crono;
-	crono.run();
-   
-	//Inicia o solver e carrega o problema
-	ZenCallback* zcb = new ZenCallback();
-	ZenSolver* solver = new ZenSolver(optMipBackend,zcb,optVerbose);
-	solver->loadProblem(optModel,optDatafile);
-    ZenVar x = solver->getVar("x");
-
-    double bestSol[solver->getNumCols()]; //array com solução
-    double currentSol[solver->getNumCols()];
-    fill(currentSol,currentSol+solver->getNumCols(),0); // inicializando o vetor current com zeros
-
-	/* Inicializando a current com a solução factível do LAHC */
-	for(int n=0; n<inst->n_nurses; n++){
-      for(int d=0; d<inst->n_weeks*7; d++){
-		int t = s->schedule[n][d].shift;
-		int k = inst->skillIndex[s->schedule[n][d].skill];	
-        currentSol[x(n+1,d+1,t+1,k+1)] = 1;			
-	  }	
-    }
-
-	double bestObj = s->costSolution;  // custo do array
-    double currentObj = s->costSolution;
-    double costSolInicial = currentObj; // custo solução inicial apenas para depois sair no log
-	copy(bestSol, bestObj, currentSol, currentObj, solver->getNumCols());
-
-	int n = 0;
-	int p = 1;
-	int noImprovements = 0;
-    int it = 1;
-
-	Combination c(inst->n_nurses,p); // partição de enfermeiros
-
-	int total=0;
-	vector<int> probV;
-	probV.push_back(optN1); total += optN1;
-	probV.push_back(optN2); total += optN2;
-	probV.push_back(optN3); total += optN3;
-	probV.push_back(optN4); total += optN4;
-	probV.push_back(optN5); total += optN5;
-    std::uniform_int_distribution<> dis(1, total);
-    std::uniform_int_distribution<> nurse(0, inst->n_nurses-1);
-
-	double gapBKS;
-	while(crono.getTime() < optTimeOut){
-	
-		// bloqueia todas as x
-		fixAll(solver, currentSol, x);
-        //solver->getSolver()->writeLp("debug");		
-
-		gapBKS = (bestObj-BKS[stoi(optInst)]) / min(BKS[stoi(optInst)], bestObj)*100;
-		
-		cout << "FixOpt " << (int)crono.getTime() << " (" << it << "/" << c.count()  << ")   " << p << "/" << noImprovements << "   BKS: " << (int)BKS[stoi(optInst)] << "   best: " << (int)bestObj << std::fixed << std::setprecision(1) << "   GAP: " << gapBKS << " %" << endl;	
-
-		// testa a combinação sequencialmente e assim que terminar, aumenta o p em 1
-		if(optNeighborhood == 0){
-
-			if(c.next() == false){
-				p++; 
-				if(p > inst->n_nurses){
-					p = 1;
-				}
-		        it = 1;
-				c.start(inst->n_nurses, p); // partição de enfermeiros	
-				c.next();
-			}
-			for (int i: c.combination()) {
-				unfixNurse(solver, currentSol, x, i); // partição de enfermeiros		
-			}
-		}
-
-		// existe uma probabilidade para selecionar de 1...5 enfermeiros
-		if(optNeighborhood == 1){
-			int prob=0;
-		    int r = dis(gen);
-			for(int i=0; i<5; i++){
-				prob += probV[i];
-				if(prob >= r){
-					switch(i){
-						case 0: p=1; break;
-						case 1: p=2; break;
-						case 2: p=3; break;
-						case 3: p=4; break;
-						case 4: p=5; break;
-						default: cout << "eu não deveria estar aqui" << endl; exit(0);		
-					}
-					break;	
-				}
-			}
-			for(int i=0; i<p; i++){
-				n = nurse(gen);
-				unfixNurse(solver, currentSol, x, n); // partição de enfermeiros				
-			}
-		}
-
-
-		solver->addCutoffRow(bestObj - 5); //add restrição para pegar apenas soluções melhores que a atual
-		//resolver
-		SolutionStatus status = solver->solve(currentSol, currentObj, false /*first improvement*/, optSTL);		
-        solver->removeLastRows(1); // remove o cutoff
-
-
-		switch(status){
-			case Z_TL_FEASIBLE: 
-			case Z_OPTIMAL:{
-				double delta = currentObj - bestObj;
-				if(delta < -0.1){
-					//cout << "Solução melhorou: " << currentObj << endl;
-					copy(bestSol, bestObj, currentSol, currentObj, solver->getNumCols());
-					solver->saveSolutionToFile(wd+"/"+optInst+".sol", bestSol, bestObj);
-					noImprovements = 0;
-				}else{
-					copy(currentSol, currentObj, bestSol, bestObj, solver->getNumCols());
-					noImprovements++;
-				}				
-				break;
-			}
-				
-			case Z_INFEASIBLE:
-                copy(currentSol, currentObj, bestSol, bestObj, solver->getNumCols());
-				noImprovements ++;
-				//cout << "Solução infactível. " <<  endl;
-				break;
-			case Z_TL_NOT_FOUND:
-                copy(currentSol, currentObj, bestSol, bestObj, solver->getNumCols());
-				noImprovements ++;
-				//cout << "Solução não encontrada. " <<  endl;
-				break;
-		}
-        it++;
-		
-	}
-	cout << endl;
-	
-	double gapInit = (bestObj-costSolInicial) / bestObj*100;	
-	cout << "End-FixOpt " << "   CostInit: " << costSolInicial << "   GAPInit: " << gapInit << " %" << "   BKS: " << (int)BKS[stoi(optInst)] << "   best: " << (int)bestObj << std::fixed << std::setprecision(1) << "   GAP: " << gapBKS << " %" << endl << endl;
-		
-    s->readSolverSolution(bestSol, bestObj, x);
-	s->geraSolutionFile();
-	s->print();
-	s->validator();
-}
-
 void LAFO(Solution* s,int optSTL, double optTimeOut){
 
 	Crono crono;
@@ -540,7 +398,7 @@ void LAFO(Solution* s,int optSTL, double optTimeOut){
 	double backupSol[solver->getNumCols()];
     fill(currentSol,currentSol+solver->getNumCols(),0); // inicializando o vetor current com zeros
 
-	/* Inicializando a current com a solução factível do LAHC */
+	/* Inicializando a current com a solução factível */
 	if(optSol == NULL){
 		for(int n=0; n<inst->n_nurses; n++){
 		  for(int d=0; d<inst->n_weeks*7; d++){
@@ -562,7 +420,7 @@ void LAFO(Solution* s,int optSTL, double optTimeOut){
     }
 
 	int n = 0;
-	int p = 1;
+	int p = optP;
 	int noImprovements = 0;
     int it = 1;
 	int I = 0;
@@ -570,14 +428,6 @@ void LAFO(Solution* s,int optSTL, double optTimeOut){
 	Combination c(inst->n_nurses,p);
 	c.next();
 
-	int total=0;
-	vector<int> probV;
-	probV.push_back(optN1); total += optN1;
-	probV.push_back(optN2); total += optN2;
-	probV.push_back(optN3); total += optN3;
-	probV.push_back(optN4); total += optN4;
-	probV.push_back(optN5); total += optN5;
-    std::uniform_int_distribution<> dis(1, total);
     double gapBKS;
 
 	while(crono.getTime() < optTimeOut){
@@ -589,34 +439,23 @@ void LAFO(Solution* s,int optSTL, double optTimeOut){
 		gapBKS = (bestObj-BKS[stoi(optInst)]) / min(BKS[stoi(optInst)], bestObj)*100;		
 		cout << "LAFO " << (int)crono.getTime() << " (" << it << "/" << c.count()  << ")   " << p << "/" << noImprovements << "   BKS: " << (int)BKS[stoi(optInst)] << "   list: " << list[v] <<"   cur: " << (int)currentObj << "   best: " << (int)bestObj << std::fixed << std::setprecision(1) << "   GAP: " << gapBKS << " %   dif: " << std::setprecision(2) <<diffSol(x, bestSol, currentSol) << endl;	
 
-		// testa a combinação de p enfermeiros sequencialmente. Quando termina aumenta o p em 1
-		if(optNeighborhood == 0){
+		// testa a combinação de p enfermeiros sequencialmente e a cada melhora continua da partição que teve melhora e recomeça para testar todos da partição. 
+		if(optNeighborhood == 0 && optCirculaVizinho == 1){
 			for (int i: c.combination()) { // desfixando os enfermeiros da partição
 				unfixNurse(solver, currentSol, x, i);
 			}
 		}
 
-		// existe uma probabilidade para que p enfermeiros sejam aleatoriamente desfixados
-		if(optNeighborhood == 1){
-			int prob=0;
-		    int r = dis(gen);
-			for(int i=0; i<5; i++){
-				prob += probV[i];
-				if(prob >= r){
-					switch(i){
-						case 0: p=1; break;
-						case 1: p=2; break;
-						case 2: p=3; break;
-						case 3: p=4; break;
-						case 4: p=5; break;
-						default: cout << "eu não deveria estar aqui" << endl; exit(0);		
-					}
-					break;	
-				}
+		// testa a combinação de p enfermeiros sequencialmente e a cada melhora continua da partição que teve melhora, quando termina já começa uma nova partição. 
+		if(optNeighborhood == 0 && optCirculaVizinho == 0){
+			if(c.next() == false){
+				p++; 
+		        it = 1;
+				c.start(inst->n_nurses, p);
+				c.next();
 			}
-			for(int i=0; i<p; i++){
-				n = rand()%inst->n_nurses;
-				unfixNurse(solver, currentSol, x, n);
+			for (int i: c.combination()) {
+				unfixNurse(solver, currentSol, x, i);
 			}
 		}
 
@@ -650,7 +489,7 @@ void LAFO(Solution* s,int optSTL, double optTimeOut){
 			}
 		}
 
-		if(optNeighborhood == 0){
+		if(optNeighborhood == 0 && optCirculaVizinho == 1){
 			if(c.next() == false){ // aumenta o tamanho da partição
 				if(noImprovements>=it){
 					p++; 
@@ -675,6 +514,24 @@ void LAFO(Solution* s,int optSTL, double optTimeOut){
 	s->validator();
 }
 
+void solveCplex(Solution* s, int timeLimit, char * model){
+
+	double currentObj = 0.0;
+
+	inst->dataSolver(optDatafile);
+	ZenCallback* zcb = new ZenCallback();
+	ZenSolver* solver = new ZenSolver(optMipBackend,zcb,5);
+	solver->loadProblem(model,optDatafile);
+	double currentSol[solver->getNumCols()];
+	SolutionStatus status = solver->solve(currentSol, currentObj, false /*first improvement*/, timeLimit);
+	ZenVar x = solver->getVar("x");
+	s->readSolverSolution(currentSol, currentObj, x);
+
+	s->geraSolutionFile();
+	s->print();
+	s->validator();		
+
+}
 
 
 int main2(int argc, char** argv){  
@@ -708,40 +565,25 @@ int main2(int argc, char** argv){
     inst->readFiles(); //inicializa
 	Solution s(inst);
 
-	// gera arquivo de dados .dat (para o solver) 
-	if(optAlg == 1){
-		inst->dataSolver(optDatafile);
-	// Verifica se solução da cplex está correta
-	}else if(optAlg == 2){ 	
+	if(optAlg == 1){ // gera arquivo de dados .dat (para o solver) 
+		solveCplex(&s, optTimeOut, optModel);	
+
+	}else if(optAlg == 2){ 	// Verifica se solução da cplex está correta
 		s.verifySolution();
 		s.forcaBruta();
 		s.print();
 		s.geraSolutionFile();
-	// LAHC
-	}else if(optAlg == 3){
+	
+	}else if(optAlg == 3){ // LAHC
 	 	cout << "LAHClist: " << optLAHClist << " " << optV1 << " " << optV2 << " " << optV3 << " " << optV4 << " " << optV5 << endl;
 		construtivoAleatorio(s);
 		s.forcaBruta();
 		cout << "Solucao inicial: " << s.costSolution << endl;
 		s = LAHC(s);	
-		//cout << "Início busca Local... " << endl;
-		//s = buscaLocal(s);
-		//int obj = s.costSolution;
 		s.geraSolutionFile();
 		s.validator();
-
-	// LAHC (sol inicial) + fixopt
-    }else if(optAlg == 4){
-		inst->dataSolver(optDatafile);
-		construtivoAleatorio(s);
-		s.forcaBruta();
-		if(optSol == NULL){
-			s = LAHC(s, false);
-		}
-    	fixOpt(&s,optSTL, optTimeOut);
-    	
-    // LAHC (sol inicial) + LAFO
-	}else if(optAlg == 5){ 
+	
+	}else if(optAlg == 5){ // LAHC (sol inicial) + LAFO
 		inst->dataSolver(optDatafile);
 		construtivoAleatorio(s);
 		s.forcaBruta();
@@ -749,6 +591,16 @@ int main2(int argc, char** argv){
 			s = LAHC(s, false);
 		}
     	LAFO(&s,optSTL, optTimeOut);
+
+	}else if(optAlg == 6){ // cplex + lafo
+		inst->dataSolver(optDatafile);
+		solveCplex(&s, optTimeInitSol, optSolInitModel);
+		s.forcaBruta();
+    	LAFO(&s,optSTL, optTimeOut);
+
+	}else if(optAlg == 7){ // cplex
+		inst->dataSolver(optDatafile);
+		solveCplex(&s, optTimeInitSol, optSolInitModel);
 	}
     
 	return 0;
@@ -789,7 +641,7 @@ int main(int argc, char** argv){
     OptRegister(&optLAHClist,'L', const_cast<char*>("LAHClist"), const_cast<char*>("Tamanho da lista do LAHC"));
     OptRegister(&optInst, 'i', const_cast<char*>("inst"), const_cast<char*>("Número da instância")); 
     OptRegister(&optVerbose, 'v', const_cast<char*>("verbose"), const_cast<char*>("Nivl de verbosidade")); 
-    OptRegister(&optTimeLAHC, 'h', const_cast<char*>("timeLAHC"), const_cast<char*>("Tempo limite para o LAHC sair")); 
+    OptRegister(&optTimeInitSol, 'h', const_cast<char*>("timeInitSol"), const_cast<char*>("Tempo limite para gerar soluçao inicial")); 
     OptRegister(&optCplex, const_cast<char*>("c"), const_cast<char*>("1 Gera arquivo para modelo"));   
     OptRegister(&optV1, const_cast<char*>("v1"), const_cast<char*>("Probabilidade da vizinhança 1"));  
     OptRegister(&optV2, const_cast<char*>("v2"), const_cast<char*>("Probabilidade da vizinhança 2"));  
@@ -808,7 +660,12 @@ int main(int argc, char** argv){
     OptRegister(&optN4, const_cast<char*>("n4"), const_cast<char*>("Probabilidade da vizinhança 4"));  
     OptRegister(&optN5, const_cast<char*>("n5"), const_cast<char*>("Probabilidade da vizinhança 5")); 
     OptRegister(&optSol, 'S', const_cast<char*>("solution"), const_cast<char*>("Solução inicial"));  
-    OptRegister(&optWorkDir, 'w', const_cast<char*>("workdir"), const_cast<char*>("Diretório de arquivos temporários"));    
+    OptRegister(&optP, 'p', const_cast<char*>("tamParticao"), const_cast<char*>("Tamanho inicial da partição"));  
+    OptRegister(&optWorkDir, 'w', const_cast<char*>("workdir"), const_cast<char*>("Diretório de arquivos temporários"));   
+	OptRegister(&optSolInitModel, 'm', const_cast<char*>("solInitModel"), const_cast<char*>("Nome do arquivo do modelo para solução inicial."));    
+ 	OptRegister(&optCirculaVizinho, 'z', const_cast<char*>("circulaVizinho"), const_cast<char*>("0: não circular, 1: circular"));    
+	OptRegister(&optModel, 'o', const_cast<char*>("solModel"), const_cast<char*>("Nome do arquivo do modelo para solução."));    
+
 	optVersion(const_cast<char*>("0.1"));
 	optDefaultFile(const_cast<char*>("opcoes.conf"));
 	optMain(main2);

@@ -123,7 +123,7 @@ void Solution::s3_consecutiveDaysOff(int n){
 	this->s_consecutiveDaysOff_nurse[n] = 0;
 
 	if(inst->historyTotalConsecutiveDaysOff[n] > maxDayOff){
-    	this->s_consecutiveDaysOff_nurse[n] -= inst->historyTotalConsecutiveDaysOff[n] - maxDayOff;
+    	atual = maxDayOff;
     } 
 
     for(int d=0; d<7*inst->n_weeks; d++){   
@@ -175,9 +175,8 @@ void Solution::s2a_consecutiveShift(int n){
     int lastShift = inst->historyLastShiftWorked[n];
 	this->s_consecutiveShift_nurse[n] = 0;
 
-	if(lastShift != inst->n_shifts && inst->historyLastShiftConsecutive[n] > inst->maxShiftConsecutive[lastShift]){
-    	this->s_consecutiveShift_nurse[n] -= inst->historyLastShiftConsecutive[n] - inst->maxShiftConsecutive[lastShift];
-	//cout << this->s_consecutiveShift_nurse[n] << " " << inst->historyLastShiftConsecutive[n] << " " << inst->maxShiftConsecutive[lastShift] << endl;
+	if(lastShift != inst->n_shifts && consecShift > inst->maxShiftConsecutive[lastShift]){
+    	consecShift = inst->maxShiftConsecutive[lastShift];
     } 
 
     for(int d=0; d<7*inst->n_weeks; d++){   
@@ -217,7 +216,7 @@ void Solution::s2b_consecutiveWorkingDays(int n){
 	this->s_consecutiveWorkingDays_nurse[n] = 0;
 
 	if(inst->historyTotalConsecutiveDays[n] > maxDay){
-        this->s_consecutiveWorkingDays_nurse[n] -= inst->historyTotalConsecutiveDays[n] - maxDay;  
+        atual = maxDay;  
     } 
 
     for(int d=0; d<7*inst->n_weeks; d++){   
